@@ -2,9 +2,9 @@
 import importlib.util
 import json
 from pathlib import Path
+import tempfile
 import unittest
 from unittest.mock import patch
-import uuid
 
 import numpy as np
 import pandas as pd
@@ -59,14 +59,18 @@ class XGBoostTests(unittest.TestCase):
             for col in sorted(columns)})
         for target in c['targets']:
             df[target] = 2+.2*df.workload
-        out = followup.ROOT/'results/99-software-test-runs'/('xgboost-test-'+uuid.uuid4().hex)
-        followup.training.run(c, df, followup.ROOT/'experiments/02-compare-xgboost-score-prediction-settings.json', out)
-        manifest = json.loads((out/'manifest.json').read_text())
-        self.assertEqual(manifest['status'], 'complete')
-        self.assertIn('xgboost', manifest['packages'])
-        pairs = pd.read_csv(out/'paired-comparisons.csv')
-        self.assertEqual(len(pairs), 10)
-        self.assertTrue((out/'results.md').exists())
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            fixture_file = Path(temporary_directory) / 'artificial-student-fixture.csv'
+            df.to_csv(fixture_file, index=False)
+            c['dataset'] = str(fixture_file)
+            out = Path(temporary_directory) / 'results'
+            followup.training.run(c, df, followup.ROOT/'experiments/02-compare-xgboost-score-prediction-settings.json', out)
+            manifest = json.loads((out/'manifest.json').read_text())
+            self.assertEqual(manifest['status'], 'complete')
+            self.assertIn('xgboost', manifest['packages'])
+            pairs = pd.read_csv(out/'paired-comparisons.csv')
+            self.assertEqual(len(pairs), 10)
+            self.assertTrue((out/'results.md').exists())
 
 
 if __name__ == '__main__':

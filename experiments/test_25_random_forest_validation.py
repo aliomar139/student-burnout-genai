@@ -33,8 +33,8 @@ class ValidationTests(unittest.TestCase):
         np.testing.assert_array_equal(p, v.labels_for(y, 1, 20261118))
         np.testing.assert_array_equal(y, v.labels_for(y, 0, 20261118))
         self.assertFalse(np.array_equal(p, v.labels_for(y, 2, 20261118)))
-        base = v.read(v.ROOT/'experiments/01-compare-score-prediction-baselines-settings.json')
-        search = v.read(v.ROOT/'experiments/10-compare-high-burnout-classifiers-settings.json')
+        base = v.read_json(v.ROOT/'experiments/01-compare-score-prediction-baselines-settings.json')
+        search = v.read_json(v.ROOT/'experiments/10-compare-high-burnout-classifiers-settings.json')
         seen = {}
         for rep, fold, tr, te in v.outer_splits(p, base, search):
             self.assertFalse(set(tr) & set(te))

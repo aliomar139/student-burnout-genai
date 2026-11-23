@@ -29,9 +29,13 @@ class RepositoryLayoutTests(unittest.TestCase):
                         self.assertTrue((ROOT/node.value).is_file(), (path, node.value))
 
     def test_dataset_bytes_and_settings_are_preserved(self):
-        self.assertEqual(digest((ROOT/'data/03-prepared-student-burnout-data.sav').read_bytes()),
+        dataset = ROOT / 'data/03-prepared-student-burnout-data.sav'
+        raw_survey = ROOT / 'data/01-original-student-survey.csv'
+        if not dataset.exists() and not raw_survey.exists():
+            self.skipTest('Requires the local participant datasets.')
+        self.assertEqual(digest(dataset.read_bytes()),
                          'ab50404a31ecbc7115b52fe6f0be1328128d45951deca70374e79b8ed4f4ce4a')
-        self.assertEqual(digest((ROOT/'data/01-original-student-survey.csv').read_bytes()),
+        self.assertEqual(digest(raw_survey.read_bytes()),
                          'd8d4323901dd5b6f4602c5a3b6850a965e86d1a58ec7f984b59aa05cf369830e')
         record_path = ROOT/'results/99-repository-reorganization-record.json'
         if not record_path.exists():

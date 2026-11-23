@@ -24,11 +24,11 @@ spec.loader.exec_module(aug)
 binary, training = aug.binary, aug.training
 
 
-def read(path):
+def read_json(path):
     return json.loads(Path(path).read_text(encoding='utf-8'))
 
 
-def write(path, value):
+def write_json(path, value):
     path = Path(path)
     temporary = path.with_suffix(path.suffix + '.tmp')
     temporary.write_text(json.dumps(value, indent=2, allow_nan=False) + '\n', encoding='utf-8')
@@ -73,8 +73,8 @@ def permutation_pvalue(observed, null):
 def run_fold(args):
     out, permutation, rep, fold = args
     out = Path(out)
-    c = read(out/'config.json')
-    base, search, source = [read(out/f'{name}.json') for name in ['base-config', 'binary-config', 'augmentation-config']]
+    c = read_json(out/'config.json')
+    base, search, source = [read_json(out/f'{name}.json') for name in ['base-config', 'binary-config', 'augmentation-config']]
     data = training.load_data(base)
     actual = (data.burnout_score.to_numpy() >= 4).astype(int)
     y = labels_for(actual, permutation, c['permutation_seed'])
@@ -169,7 +169,7 @@ def run_fold(args):
             'workload_candidates': workload, 'workload_selected': wc,
             'predictions': predictions, 'generation': generation,
             'seconds': time.monotonic()-started}
-        write(out/'folds'/f'p{permutation:03d}-r{rep}-f{fold}.json', result)
+        write_json(out/'folds'/f'p{permutation:03d}-r{rep}-f{fold}.json', result)
         return permutation, rep, fold, result['seconds']
 
 
@@ -184,8 +184,8 @@ def metrics_frame(predictions):
 
 
 def collect(out):
-    c = read(out/'config.json')
-    real = [read(p) for p in sorted((out/'folds').glob('p000-*.json'))]
+    c = read_json(out/'config.json')
+    real = [read_json(p) for p in sorted((out/'folds').glob('p000-*.json'))]
     if len(real) != 25:
         return None
     predictions = pd.DataFrame([p for f in real for p in f['predictions']])
@@ -214,7 +214,7 @@ def collect(out):
         files = sorted((out/'folds').glob(f'p{perm:03d}-*.json'))
         if len(files) != 25:
             continue
-        p = pd.DataFrame([p for path in files for p in read(path)['predictions']])
+        p = pd.DataFrame([p for path in files for p in read_json(path)['predictions']])
         m = metrics_frame(p).mean(numeric_only=True)
         null_rows.append({'permutation': perm, **{k: float(m[k]) for k in ['balanced_accuracy', 'recall', 'precision', 'f2']}})
     pd.DataFrame(null_rows).to_csv(out/'permutation-metrics.csv', index=False)
@@ -223,7 +223,7 @@ def collect(out):
         'pvalue': permutation_pvalue(observed, [r['balanced_accuracy'] for r in null_rows]) if null_rows else None,
         'pvalue_is_final': len(null_rows) == c['permutations'],
         'historical_selection_bias_accounted_for': False}
-    write(out/'evaluation-summary.json', result)
+    write_json(out/'evaluation-summary.json', result)
     return result
 
 
@@ -233,28 +233,28 @@ def main():
     parser.add_argument('--stage', choices=['pilot', 'real', 'permutations', 'collect'], default='real')
     args = parser.parse_args()
     config_path = ROOT/'experiments/25-validate-random-forest-against-baselines-and-chance-settings.json'
-    c = read(config_path)
+    c = read_json(config_path)
     out = args.out
     if out is None:
         out = ROOT/c['output_root']/datetime.now(timezone.utc).strftime('%Y%m%dT%H%M%S%fZ')
         (out/'folds').mkdir(parents=True, exist_ok=False)
-        write(out/'config.json', c)
+        write_json(out/'config.json', c)
         for name, key in [('base-config', 'base_config'), ('binary-config', 'binary_config'), ('augmentation-config', 'augmentation_config')]:
-            write(out/f'{name}.json', read(ROOT/c[key]))
+            write_json(out/f'{name}.json', read_json(ROOT/c[key]))
         paths = [Path(__file__), config_path, ROOT/c['base_config'], ROOT/c['binary_config'], ROOT/c['augmentation_config']]
         paths += [Path(m.__file__) for m in [aug, binary, binary.ensemble, training, aug.kernels, aug.priority]]
-        base = read(ROOT/c['base_config'])
+        base = read_json(ROOT/c['base_config'])
         paths += [ROOT/base['dataset'], ROOT/base['derived_indicator_reconstruction']['raw_csv']]
-        write(out/'manifest.json', {'status': 'running', 'started_utc': datetime.now(timezone.utc).isoformat(),
+        write_json(out/'manifest.json', {'status': 'running', 'started_utc': datetime.now(timezone.utc).isoformat(),
             'source_sha256': {str(p.relative_to(ROOT)): training.sha256(p) for p in paths},
             'packages': {p: version(p) for p in ['numpy', 'pandas', 'scikit-learn', 'scipy', 'pyreadstat', 'xgboost', 'threadpoolctl']},
             'historical_outputs_recovered': False, 'scope': 'Regenerated selected eight-input RF only; previous output folders remain absent.',
             'final_model_replaced': False, 'real_students': 97, 'permutation_unit': 'student', 'stage': args.stage})
     else:
         out = out.resolve()
-        c = read(out/'config.json')
+        c = read_json(out/'config.json')
     print(f'Audit directory: {out}', flush=True)
-    manifest = read(out/'manifest.json')
+    manifest = read_json(out/'manifest.json')
     assert all(training.sha256(ROOT/p) == h for p, h in manifest['source_sha256'].items()), 'Sources changed since audit creation'
     if args.stage == 'collect':
         print(json.dumps(collect(out), indent=2), flush=True)
@@ -264,7 +264,7 @@ def main():
             if not (out/'folds'/f'p{p:03d}-r{r}-f{f}.json').exists()]
     if args.stage == 'pilot':
         jobs = jobs[:1]
-    write(out/'manifest.json', {**manifest, 'stage': args.stage, 'status': 'running'})
+    write_json(out/'manifest.json', {**manifest, 'stage': args.stage, 'status': 'running'})
     try:
         with ProcessPoolExecutor(max_workers=c['workers']) as executor:
             futures = [executor.submit(run_fold, job) for job in jobs]
@@ -278,12 +278,12 @@ def main():
         if result and not all(result['historical_metric_match'].values()):
             raise AssertionError('Regenerated RF metrics differ from history; investigate before interpreting permutations')
         complete = bool(result and result['pvalue_is_final'])
-        write(out/'manifest.json', {**manifest, 'stage': args.stage, 'status': 'complete' if complete else 'partial',
+        write_json(out/'manifest.json', {**manifest, 'stage': args.stage, 'status': 'complete' if complete else 'partial',
             'source_files_unchanged': True, 'updated_utc': datetime.now(timezone.utc).isoformat(),
             'completed_folds': len(list((out/'folds').glob('*.json')))})
         print(json.dumps(result, indent=2), flush=True)
     except Exception as exc:
-        write(out/'manifest.json', {**manifest, 'stage': args.stage, 'status': 'failed', 'error': str(exc)})
+        write_json(out/'manifest.json', {**manifest, 'stage': args.stage, 'status': 'failed', 'error': str(exc)})
         raise
 
 

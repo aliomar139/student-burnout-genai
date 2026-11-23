@@ -21,6 +21,8 @@ CONFIG = json.loads((SCRIPT.parent / '01-compare-score-prediction-baselines-sett
 class WorkflowTests(unittest.TestCase):
     def test_real_data_reconstruction_preserves_source(self):
         path = training.ROOT / CONFIG['dataset']
+        if not path.is_file():
+            self.skipTest('Requires the local participant dataset.')
         original_hash = training.sha256(path)
         df = training.load_data(CONFIG)
         self.assertEqual(df.attrs['readiness']['reconstructed_count'], 3)
@@ -69,21 +71,22 @@ class WorkflowTests(unittest.TestCase):
             df[col] = rng.choice(levels, 20)
         for target in c['targets']:
             df[target] = np.clip(2 + .2 * df.workload + rng.normal(0, .2, 20), 1, 5)
-        base = training.ROOT / 'results/99-software-test-runs'
-        base.mkdir(exist_ok=True)
-        # TemporaryDirectory is avoided because this Windows sandbox restricts its ACLs.
-        folder = base / ('workflow-test-' + __import__('uuid').uuid4().hex)
-        training.run(c, df, SCRIPT.parent / '01-compare-score-prediction-baselines-settings.json', folder)
-        manifest = json.loads((folder / 'manifest.json').read_text())
-        self.assertEqual(manifest['status'], 'complete')
-        predictions = pd.read_csv(folder / 'held-out-predictions.csv')
-        self.assertEqual(len(predictions), 20 * 2 * 10)
-        self.assertTrue(predictions.prediction.between(1, 5).all())
-        pairs = pd.read_csv(folder / 'paired-comparisons.csv')
-        self.assertEqual(len(pairs), 2 * (6 + 8 * 2))
-        folds = pd.read_csv(folder / 'outer-folds.csv')
-        self.assertEqual(folds.student_index.nunique(), 20)
-        self.assertTrue((folder / 'results.md').is_file())
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            fixture_file = Path(temporary_directory) / 'artificial-student-fixture.csv'
+            df.to_csv(fixture_file, index=False)
+            c['dataset'] = str(fixture_file)
+            folder = Path(temporary_directory) / 'results'
+            training.run(c, df, SCRIPT.parent / '01-compare-score-prediction-baselines-settings.json', folder)
+            manifest = json.loads((folder / 'manifest.json').read_text())
+            self.assertEqual(manifest['status'], 'complete')
+            predictions = pd.read_csv(folder / 'held-out-predictions.csv')
+            self.assertEqual(len(predictions), 20 * 2 * 10)
+            self.assertTrue(predictions.prediction.between(1, 5).all())
+            pairs = pd.read_csv(folder / 'paired-comparisons.csv')
+            self.assertEqual(len(pairs), 2 * (6 + 8 * 2))
+            folds = pd.read_csv(folder / 'outer-folds.csv')
+            self.assertEqual(folds.student_index.nunique(), 20)
+            self.assertTrue((folder / 'results.md').is_file())
 
 
 if __name__ == '__main__':

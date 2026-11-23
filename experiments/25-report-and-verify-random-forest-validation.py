@@ -56,9 +56,9 @@ def conditional_intervals(predictions, config):
 
 
 def verify(out, predictions):
-    manifest, c = v.read(out/'manifest.json'), v.read(out/'config.json')
+    manifest, c = v.read_json(out/'manifest.json'), v.read_json(out/'config.json')
     assert all(v.training.sha256(v.ROOT/p) == h for p, h in manifest['source_sha256'].items())
-    base, search, source = [v.read(out/f'{name}.json') for name in ['base-config', 'binary-config', 'augmentation-config']]
+    base, search, source = [v.read_json(out/f'{name}.json') for name in ['base-config', 'binary-config', 'augmentation-config']]
     data = v.training.load_data(base)
     actual = (data.burnout_score.to_numpy() >= 4).astype(int)
     files = sorted((out/'folds').glob('*.json'))
@@ -67,7 +67,7 @@ def verify(out, predictions):
     null_predictions = {}
     with threadpool_limits(limits=1):
         for path in files:
-            r = v.read(path)
+            r = v.read_json(path)
             y = v.labels_for(actual, r['permutation'], c['permutation_seed'])
             import hashlib
             assert r['label_sha256'] == hashlib.sha256(y.tobytes()).hexdigest()
@@ -154,7 +154,7 @@ def verify(out, predictions):
     verified_null = pd.DataFrame(null_rows).set_index('permutation').sort_index()
     saved_null = pd.read_csv(out/'permutation-metrics.csv').set_index('permutation').sort_index()
     np.testing.assert_allclose(verified_null, saved_null[list(verified_null)], atol=1e-12)
-    evaluation = v.read(out/'evaluation-summary.json')
+    evaluation = v.read_json(out/'evaluation-summary.json')
     observed = float(independent.loc['selected_rf', 'balanced_accuracy'].mean())
     assert np.isclose(evaluation['observed_balanced_accuracy'], observed)
     assert np.isclose(evaluation['pvalue'], v.permutation_pvalue(observed, verified_null.balanced_accuracy))
@@ -163,11 +163,11 @@ def verify(out, predictions):
     refit = out/'verification-refits'
     (refit/'folds').mkdir(parents=True, exist_ok=True)
     for name in ['config', 'base-config', 'binary-config', 'augmentation-config']:
-        v.write(refit/f'{name}.json', v.read(out/f'{name}.json'))
+        v.write_json(refit/f'{name}.json', v.read_json(out/f'{name}.json'))
     for perm in [0, 1]:
         v.run_fold((str(refit), perm, 1, 1))
-        original = v.read(out/'folds'/f'p{perm:03d}-r1-f1.json')
-        replay = v.read(refit/'folds'/f'p{perm:03d}-r1-f1.json')
+        original = v.read_json(out/'folds'/f'p{perm:03d}-r1-f1.json')
+        replay = v.read_json(refit/'folds'/f'p{perm:03d}-r1-f1.json')
         assert {k: val for k, val in original.items() if k != 'seconds'} == {k: val for k, val in replay.items() if k != 'seconds'}
     return {'passed': True, 'fold_checkpoints': len(files), 'candidates_checked': candidates_checked,
             'selected_real_outer_refits': selected_refits, 'full_search_replays': 2,
@@ -223,7 +223,7 @@ def main():
     args = parser.parse_args()
     out = args.out.resolve()
     while args.wait:
-        current = v.read(out/'manifest.json')
+        current = v.read_json(out/'manifest.json')
         if current['status'] == 'failed':
             raise RuntimeError(current.get('error', 'Validation computation failed'))
         if current['status'] == 'complete':
@@ -233,7 +233,7 @@ def main():
     assert evaluation and evaluation['pvalue_is_final'] and all(evaluation['historical_metric_match'].values())
     predictions = pd.read_csv(out/'held-out-predictions.csv')
     verification = verify(out, predictions)
-    c = v.read(out/'config.json')
+    c = v.read_json(out/'config.json')
     intervals = conditional_intervals(predictions, c)
     intervals.to_csv(out/'conditional-student-bootstrap-intervals.csv', index=False)
     repeats = pd.read_csv(out/'repeat-metrics.csv')
@@ -261,7 +261,7 @@ def main():
              'workload_logistic': 'Workload-only logistic', 'random_same_warning_count': 'Random, same warning count',
              'warn_everyone': 'Warn everyone', 'warn_nobody': 'Warn nobody'}
     metric_names = {'recall': 'Recall', 'precision': 'Precision', 'balanced_accuracy': 'Balanced accuracy'}
-    manifest = v.read(out/'manifest.json')
+    manifest = v.read_json(out/'manifest.json')
     elapsed = (datetime.fromisoformat(manifest['updated_utc'])-datetime.fromisoformat(manifest['started_utc'])).total_seconds()/3600
     lines = ['# Selected RF: validation report', '',
         'Completed: '+datetime.now(timezone.utc).astimezone(ZoneInfo('Asia/Beirut')).isoformat()+' (Asia/Beirut)', '',
@@ -318,9 +318,9 @@ def main():
     (v.ROOT/'results/25-random-forest-validation-report.md').write_text(text, encoding='utf-8')
     verification['artifact_sha256'] = {p.name: v.training.sha256(p) for p in out.iterdir() if p.is_file() and p.name not in ['verification.json', 'manifest.json']}
     verification['report_script_sha256'] = v.training.sha256(__file__)
-    v.write(out/'verification.json', verification)
-    manifest = v.read(out/'manifest.json')
-    v.write(out/'manifest.json', {**manifest, 'report_verified': True, 'report_path': 'results/25-random-forest-validation-report.md',
+    v.write_json(out/'verification.json', verification)
+    manifest = v.read_json(out/'manifest.json')
+    v.write_json(out/'manifest.json', {**manifest, 'report_verified': True, 'report_path': 'results/25-random-forest-validation-report.md',
                                  'report_script_sha256': verification['report_script_sha256']})
     print(json.dumps({'report': str(v.ROOT/'results/25-random-forest-validation-report.md'), 'verification': verification['passed']}, indent=2), flush=True)
 
