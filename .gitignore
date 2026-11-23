@@ -1,0 +1,123 @@
+# ==========================================
+# Git ignore rules
+# ==========================================
+
+# --- Operating System Files ---
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+
+# --- IDE and Editor Configurations ---
+.vscode/
+.idea/
+*.sublime-project
+*.sublime-workspace
+*.swp
+*.swo
+*~
+
+# --- Microsoft Office Temporary & Lock Files ---
+~$*.pptx
+~$*.docx
+~$*.xlsx
+
+# --- Research Data & Confidential Survey Records ---
+# Protect participant-level survey records and raw response sheets
+**/data.csv
+**/data.xlsx
+**/*Responses*.csv
+**/*Responses*.xlsx
+**/BAT-*.pdf
+**/BAT-S_ENG.pdf
+tmp/
+temp/
+
+# --- Python & Data Science Environments ---
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+.env
+.venv
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+.ipynb_checkpoints
+
+# --- Logs & Runtime Output ---
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# --- Downloaded Research Papers & Large Paper Caches ---
+**/downloaded_papers/
+**/Similar-Papers/downloaded_papers/
+*.pkl
+
+# Local environments, editor settings and Python caches
+/.venv/
+/.venv-tabpfn/
+/.vscode/
+__pycache__/
+*.pyc
+
+# Original local-only survey exports and reference PDF
+/data/02-original-student-survey-workbook.xlsx
+/data/04-experimental-predictor-rebuild.sav
+/data/92-previous-survey-responses.csv
+/data/92-previous-survey-responses.xlsx
+/research/03-original-burnout-assessment-questionnaire.pdf
+
+# Full runs, private predictions, models, backups and check artifacts stay local.
+# Only the listed aggregate results and existing SPSS/data reports are shared.
+/results/*
+!/results/00-data-consistency-checks.json
+!/results/00-model-readiness-check.json
+!/results/00-spss-variable-dictionary.json
+!/results/00-spss-descriptive-statistics.spv
+!/results/25-random-forest-validation-report.md
+!/results/25-model-comparison-summary.csv
+!/results/25-model-results-by-validation-repeat.csv
+!/results/25-paired-model-comparisons.csv
+!/results/25-conditional-student-uncertainty-intervals.csv
+!/results/25-results-stability-across-repeats.csv
+!/results/25-shuffled-label-test-results.csv
+!/results/25-warning-threshold-tradeoff-data.csv
+!/results/25-real-model-versus-shuffled-labels.png
+!/results/25-detections-versus-false-warnings.png
+!/results/25-random-forest-confusion-matrix.png
+
+# Research paper collections & caches
+/DrKassemDanachPapers/
+/ExplainableAIBurnoutPapers/pdfs
+/ExplainableAI_Student_Burnout_Papers/pdfs
+
+# Participant-level data and diagnostics
+/data/
+/results/00-data-consistency-checks.json
+/results/00-spss-descriptive-statistics.spv
